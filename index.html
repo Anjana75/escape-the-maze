@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Escape The Maze - Retro Arcade</title>
+    <!-- Tailwind CSS for rapid modern styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Rajdhani:wght@500;700&display=swap');
+
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background-color: #080914;
+            color: #e2e8f0;
+            user-select: none;
+            overflow-x: hidden;
+        }
+
+        .font-pixel {
+            font-family: 'Press Start 2P', monospace;
+        }
+
+        /* Neon Glow Effects */
+        .glow-title {
+            text-shadow: 0 0 10px #3b82f6, 0 0 20px #3b82f6, 0 0 40px #1d4ed8;
+        }
+
+        .glow-box {
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.3), inset 0 0 15px rgba(59, 130, 246, 0.15);
+            border: 2px solid rgba(59, 130, 246, 0.5);
+        }
+
+        .glow-red {
+            box-shadow: 0 0 15px rgba(239, 68, 68, 0.4);
+            border: 2px solid rgba(239, 68, 68, 0.6);
+        }
+
+        .glow-green {
+            box-shadow: 0 0 15px rgba(34, 197, 94, 0.4);
+            border: 2px solid rgba(34, 197, 94, 0.6);
+        }
+
+        canvas {
+            image-rendering: pixelated;
+            border-radius: 8px;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.8), 0 0 10px rgba(59, 130, 246, 0.3);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3b82f6;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-2 md:p-4 bg-slate-950 text-slate-100">
+
+    <!-- Main Container -->
+    <div class="w-full max-w-4xl flex flex-col items-center">
+        
+        <!-- Header / Game Title -->
+        <header class="w-full flex justify-between items-center mb-3 px-2">
+            <div>
+                <h1 class="text-2xl md:text-4xl font-extrabold tracking-wider text-blue-400 glow-title uppercase">
+                    Maze <span class="text-emerald-400">Escape</span>
+                </h1>
+                <p class="text-xs text-slate-400 tracking-widest uppercase">Procedural Survival Lab</p>
+            </div>
+            
+            <!-- Quick Toggles -->
+            <div class="flex items-center gap-3">
+                <button id="btn-fog" class="px-3 py-1.5 text-xs font-bold rounded-lg border border-slate-700 bg-slate-900 hover:bg-slate-800 text-slate-300 transition flex items-center gap-1.5 shadow">
+                    <span>💡 Fog of War:</span>
+                    <span id="fog-status" class="text-rose-400">OFF</span>
+                </button>
+                <button id="btn-sound" class="px-3 py-1.5 text-xs font-bold rounded-lg border border-slate-700 bg-slate-900 hover:bg-slate-800 text-slate-300 transition flex items-center gap-1 shadow">
+                    <span>🔊 Sound:</span>
+                    <span id="sound-status" class="text-emerald-400">ON</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Top HUD Bar -->
+        <div id="hud" class="w-full bg-slate-900/90 backdrop-blur border border-slate-800 rounded-xl p-3 md:p-4 mb-3 flex flex-wrap items-center justify-between text-sm md:text-base font-semibold shadow-lg gap-2">
+            <div class="flex items-center gap-2 bg-slate-950/60 px-3 py-1.5 rounded-lg border border-slate-800">
+                <span class="text-slate-400">LEVEL:</span>
+                <span id="hud-level" class="text-yellow-400 font-pixel text-xs md:text-sm">1</span>
+            </div>
+            
+            <div class="flex items-center gap-2 bg-slate-950/60 px-3 py-1.5 rounded-lg border border-slate-800">
+                <span class="text-slate-400">SCORE:</span>
+                <span id="hud-score" class="text-emerald-400 font-pixel text-xs md:text-sm">00000</span>
+            </div>
+
+            <div class="flex items-center gap-2 bg-slate-950/60 px-3 py-1.5 rounded-lg border border-slate-800">
+                <span class="text-slate-400">KEYS:</span>
+                <span id="hud-keys" class="text-amber-400 font-pixel text-xs md:text-sm">🔑 0/0</span>
+            </div>
+
+            <div class="flex items-center gap-2 bg-slate-950/60 px-3 py-1.5 rounded-lg border border-slate-800">
+                <span class="text-slate-400">LIVES:</span>
+                <span id="hud-lives" class="text-rose-500 font-pixel text-xs md:text-sm">❤️❤️❤️</span>
+            </div>
+
+            <div class="flex items-center gap-2 bg-slate-950/60 px-3 py-1.5 rounded-lg border border-slate-800">
+                <span class="text-slate-400">TIME:</span>
+                <span id="hud-timer" class="text-cyan-400 font-pixel text-xs md:text-sm">00s</span>
+            </div>
+        </div>
+
+        <!-- Canvas Game Window & Overlays Wrapper -->
+        <div class="relative w-full aspect-square max-w-[650px] flex items-center justify-center">
+            
+            <!-- Canvas -->
+            <canvas id="gameCanvas" class="w-full h-full bg-slate-950 border-2 border-slate-800"></canvas>
+
+            <!-- START SCREEN OVERLAY -->
+            <div id="start-overlay" class="absolute inset-0 bg-slate-950/95 backdrop-blur-md rounded-lg flex flex-col items-center justify-center p-6 text-center z-20 glow-box">
+                <div class="text-5xl mb-3">🗝️</div>
+                <h2 class="text-3xl md:text-4xl font-extrabold text-blue-400 font-pixel mb-2">ESCAPE MAZE</h2>
+                <p class="text-slate-300 text-sm md:text-base max-w-md mb-6 leading-relaxed">
+                    Trapped in a dark subterranean maze! Collect all hidden golden keys to unlock the portal, dodge lethal patrol bots, and escape before time expires.
+                </p>
+
+                <!-- Controls Info Box -->
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 w-full max-w-sm mb-6 text-xs md:text-sm text-left">
+                    <div class="font-bold text-slate-300 mb-2 border-b border-slate-800 pb-1">CONTROLS & LEGEND:</div>
+                    <div class="grid grid-cols-2 gap-2 text-slate-400">
+                        <div><span class="text-slate-200 font-bold">WASD / Arrows:</span> Move</div>
+                        <div><span class="text-cyan-400 font-bold">🟦 Cyan Dot:</span> Player</div>
+                        <div><span class="text-amber-400 font-bold">🔑 Keys:</span> Objectives</div>
+                        <div><span class="text-rose-500 font-bold">👾 Red Bots:</span> Enemies</div>
+                        <div class="col-span-2"><span class="text-emerald-400 font-bold">🚪 Green Gate:</span> Exit Portal</div>
+                    </div>
+                </div>
+
+                <button id="btn-start" class="px-8 py-3.5 bg-gradient-to-r from-blue-600 to-emerald-600 hover:from-blue-500 hover:to-emerald-500 text-white font-pixel text-sm rounded-xl font-bold shadow-lg shadow-blue-900/50 hover:scale-105 active:scale-95 transition transform cursor-pointer">
+                    START ESCAPE
+                </button>
+            </div>
+
+            <!-- LEVEL VICTORY OVERLAY -->
+            <div id="victory-overlay" class="hidden absolute inset-0 bg-slate-950/90 backdrop-blur-md rounded-lg flex flex-col items-center justify-center p-6 text-center z-20 glow-green">
+                <div class="text-5xl mb-2">🎉</div>
+                <h2 class="text-2xl md:text-3xl font-extrabold text-emerald-400 font-pixel mb-2">SECTOR CLEARED!</h2>
+                <p class="text-slate-300 text-sm mb-4">You found all keys and reached the portal!</p>
+
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 w-full max-w-xs mb-6 text-sm text-left space-y-2">
+                    <div class="flex justify-between"><span class="text-slate-400">Level Bonus:</span> <span class="text-emerald-400 font-mono font-bold">+500</span></div>
+                    <div class="flex justify-between"><span class="text-slate-400">Time Bonus:</span> <span id="vic-time-bonus" class="text-cyan-400 font-mono font-bold">+0</span></div>
+                    <div class="flex justify-between border-t border-slate-800 pt-2"><span class="text-slate-200 font-bold">Total Score:</span> <span id="vic-total-score" class="text-yellow-400 font-pixel font-bold">0000</span></div>
+                </div>
+
+                <button id="btn-next-level" class="px-8 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-pixel text-xs md:text-sm rounded-xl font-bold shadow-lg shadow-emerald-900/50 hover:scale-105 active:scale-95 transition transform cursor-pointer">
+                    NEXT LEVEL ➔
+                </button>
+            </div>
+
+            <!-- GAME OVER OVERLAY -->
+            <div id="gameover-overlay" class="hidden absolute inset-0 bg-slate-950/95 backdrop-blur-md rounded-lg flex flex-col items-center justify-center p-6 text-center z-20 glow-red">
+                <div class="text-5xl mb-2">💀</div>
+                <h2 class="text-2xl md:text-3xl font-extrabold text-rose-500 font-pixel mb-2">MISSION FAILED</h2>
+                <p id="gameover-reason" class="text-slate-400 text-sm mb-4">You lost all life signatures.</p>
+
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 w-full max-w-xs mb-6 text-sm text-left space-y-2">
+                    <div class="flex justify-between"><span class="text-slate-400">Reached Level:</span> <span id="go-level" class="text-yellow-400 font-mono font-bold">1</span></div>
+                    <div class="flex justify-between"><span class="text-slate-400">Final Score:</span> <span id="go-score" class="text-emerald-400 font-pixel font-bold">0000</span></div>
+                </div>
+
+                <button id="btn-restart" class="px-8 py-3 bg-rose-600 hover:bg-rose-500 text-white font-pixel text-xs md:text-sm rounded-xl font-bold shadow-lg shadow-rose-900/50 hover:scale-105 active:scale-95 transition transform cursor-pointer">
+                    TRY AGAIN
+                </button>
+            </div>
+
+        </div>
+
+        <!-- Touch Controls for Mobile Devices -->
+        <div class="w-full max-w-[360px] grid grid-cols-3 gap-2 mt-4 md:hidden">
+            <div></div>
+            <button id="touch-up" class="h-12 bg-slate-800 active:bg-blue-600 border border-slate-700 rounded-lg flex items-center justify-center text-xl font-bold text-slate-200">▲</button>
+            <div></div>
+            <button id="touch-left" class="h-12 bg-slate-800 active:bg-blue-600 border border-slate-700 rounded-lg flex items-center justify-center text-xl font-bold text-slate-200">◄</button>
+            <button id="touch-down" class="h-12 bg-slate-800 active:bg-blue-600 border border-slate-700 rounded-lg flex items-center justify-center text-xl font-bold text-slate-200">▼</button>
+            <button id="touch-right" class="h-12 bg-slate-800 active:bg-blue-600 border border-slate-700 rounded-lg flex items-center justify-center text-xl font-bold text-slate-200">►</button>
+        </div>
+
+        <footer class="mt-4 text-xs text-slate-500 text-center">
+            Esc the Maze • Built with Procedural Grid Generation & HTML5 Canvas
+        </footer>
+    </div>
+
+    <!-- GAME LOGIC SCRIPT -->
+    <script>
+        // --- Web Audio Synthesizer Sound Engine ---
+        class SoundEngine {
+            constructor() {
+                this.enabled = true;
+                this.ctx = null;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    if (AudioCtx) this.ctx = new AudioCtx();
+                }
+            }
+
+            play(type) {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+
+                const now = this.ctx.currentTime;
+
+                if (type === 'key') {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(587.33, now); // D5
+                    osc.frequency.exponentialRampToValueAtTime(880, now + 0.15); // A5
+                    gain.gain.setValueAtTime(0.15, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.15);
+                } else if (type === 'hit') {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(160, now);
+                    osc.frequency.linearRampToValueAtTime(40, now + 0.25);
+                    gain.gain.setValueAtTime(0.25, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.25);
+                } else if (type === 'unlock') {
+                    const notes = [523.25, 659.25, 783.99, 1046.50]; // C E G C
+                    notes.forEach((freq, idx) => {
+                        const osc = this.ctx.createOscillator();
+                        const gain = this.ctx.createGain();
+                        osc.type = 'triangle';
+                        osc.frequency.setValueAtTime(freq, now + idx * 0.08);
+                        gain.gain.setValueAtTime(0.15, now + idx * 0.08);
+                        gain.gain.exponentialRampToValueAtTime(0.01, now + idx * 0.08 + 0.12);
+                        osc.connect(gain);
+                        gain.connect(this.ctx.destination);
+                        osc.start(now + idx * 0.08);
+                        osc.stop(now + idx * 0.08 + 0.12);
+                    });
+                } else if (type === 'win') {
+                    const notes = [440, 554.37, 659.25, 880]; // A C# E A
+                    notes.forEach((freq, idx) => {
+                        const osc = this.ctx.createOscillator();
+                        const gain = this.ctx.createGain();
+                        osc.type = 'square';
+                        osc.frequency.setValueAtTime(freq, now + idx * 0.1);
+                        gain.gain.setValueAtTime(0.12, now + idx * 0.1);
+                        gain.gain.exponentialRampToValueAtTime(0.01, now + idx * 0.1 + 0.2);
+                        osc.connect(gain);
+                        gain.connect(this.ctx.destination);
+                        osc.start(now + idx * 0.1);
+                        osc.stop(now + idx * 0.1 + 0.2);
+                    });
+                } else if (type === 'gameover') {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(220, now);
+                    osc.frequency.exponentialRampToValueAtTime(50, now + 0.6);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.6);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.6);
+                }
+            }
+        }
+
+        const sound = new SoundEngine();
+
+        // --- Game Setup & State ---
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // UI elements
+        const hudLevel = document.getElementById('hud-level');
+        const hudScore = document.getElementById('hud-score');
+        const hudKeys = document.getElementById('hud-keys');
+        const hudLives = document.getElementById('hud-lives');
+        const hudTimer = document.getElementById('hud-timer');
+
+        const overlayStart = document.getElementById('start-overlay');
+        const overlayVictory = document.getElementById('victory-overlay');
+        const overlayGameOver = document.getElementById('gameover-overlay');
+
+        const btnStart = document.getElementById('btn-start');
+        const btnNextLevel = document.getElementById('btn-next-level');
+        const btnRestart = document.getElementById('btn-restart');
+        const btnFog = document.getElementById('btn-fog');
+        const fogStatus = document.getElementById('fog-status');
+        const btnSound = document.getElementById('btn-sound');
+        const soundStatus = document.getElementById('sound-status');
+
+        let fogOfWar = false;
+        let gameState = 'START'; // START, PLAYING, VICTORY, GAMEOVER
+        let level = 1;
+        let score = 0;
+        let lives = 3;
+        let timeRemaining = 60;
+        let timerInterval = null;
+
+        // Maze Grid Settings
+        let cols = 11;
+        let rows = 11;
+        let cellSize = 0;
+        let grid = [];
+        let player = { x: 0, y: 0, px: 0, py: 0, speed: 3.5, radius: 0, invulnerable: 0 };
+        let keys = [];
+        let keysCollected = 0;
+        let totalKeys = 0;
+        let exitGate = { x: 0, y: 0, unlocked: false };
+        let enemies = [];
+
+        // Input Tracking
+        const keysPressed = {};
+
+        // --- Procedural Maze Generation (Recursive Backtracking) ---
+        class Cell {
+            constructor(c, r) {
+                this.c = c;
+                this.r = r;
+                // Walls: [Top, Right, Bottom, Left]
+                this.walls = [true, true, true, true];
+                this.visited = false;
+            }
+
+            checkNeighbors() {
+                const neighbors = [];
+                const { c, r } = this;
+
+                const top    = r > 0 ? grid[index(c, r - 1)] : null;
+                const right  = c < cols - 1 ? grid[index(c + 1, r)] : null;
+                const bottom = r < rows - 1 ? grid[index(c, r + 1)] : null;
+                const left   = c > 0 ? grid[index(c - 1, r)] : null;
+
+                if (top && !top.visited) neighbors.push(top);
+                if (right && !right.visited) neighbors.push(right);
+                if (bottom && !bottom.visited) neighbors.push(bottom);
+                if (left && !left.visited) neighbors.push(left);
+
+                if (neighbors.length > 0) {
+                    const rIdx = Math.floor(Math.random() * neighbors.length);
+                    return neighbors[rIdx];
+                }
+                return null;
+            }
+        }
+
+        function index(c, r) {
+            if (c < 0 || r < 0 || c >= cols || r >= rows) return -1;
+            return c + r * cols;
+        }
+
+        function removeWalls(a, b) {
+            const x = a.c - b.c;
+            if (x === 1) {
+                a.walls[3] = false;
+                b.walls[1] = false;
+            } else if (x === -1) {
+                a.walls[1] = false;
+                b.walls[3] = false;
+            }
+            const y = a.r - b.r;
+            if (y === 1) {
+                a.walls[0] = false;
+                b.walls[2] = false;
+            } else if (y === -1) {
+                a.walls[2] = false;
+                b.walls[0] = false;
+            }
+        }
+
+        function generateMaze() {
+            grid = [];
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    grid.push(new Cell(c, r));
+                }
+            }
+
+            const stack = [];
+            const current = grid[0];
+            current.visited = true;
+            stack.push(current);
+
+            while (stack.length > 0) {
+                const currCell = stack[stack.length - 1];
+                const next = currCell.checkNeighbors();
+
+                if (next) {
+                    next.visited = true;
+                    stack.push(next);
+                    removeWalls(currCell, next);
+                } else {
+                    stack.pop();
+                }
+            }
+        }
+
+        // --- Level & Entities Initialization ---
+        function initLevel() {
+            // Adjust grid size and difficulty based on level
+            cols = 9 + Math.floor((level - 1) * 2);
+            rows = 9 + Math.floor((level - 1) * 2);
+            // Cap size for responsive screen fitting
+            if (cols > 23) cols = 23;
+            if (rows > 23) rows = 23;
+
+            // Resize Canvas based on container square size
+            const size = Math.min(window.innerWidth - 32, 600);
+            canvas.width = size;
+            canvas.height = size;
+            cellSize = canvas.width / cols;
+
+            generateMaze();
+
+            // Setup Player Start
+            player.x = 0;
+            player.y = 0;
+            player.px = cellSize / 2;
+            player.py = cellSize / 2;
+            player.radius = cellSize * 0.28;
+            player.speed = cellSize * 0.085;
+            player.invulnerable = 0;
+
+            // Setup Exit Gate at bottom right
+            exitGate = {
+                x: cols - 1,
+                y: rows - 1,
+                unlocked: false
+            };
+
+            // Setup Collectible Keys
+            totalKeys = Math.min(2 + Math.floor(level * 0.8), 7);
+            keysCollected = 0;
+            keys = [];
+
+            // Find valid random cells for keys (excluding start and end)
+            const availableCells = [];
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    if ((c === 0 && r === 0) || (c === exitGate.x && r === exitGate.y)) continue;
+                    availableCells.push({ c, r });
+                }
+            }
+
+            // Shuffle available cells
+            for (let i = availableCells.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [availableCells[i], availableCells[j]] = [availableCells[j], availableCells[i]];
+            }
+
+            for (let i = 0; i < totalKeys; i++) {
+                if (availableCells.length > 0) {
+                    const cell = availableCells.pop();
+                    keys.push({
+                        c: cell.c,
+                        r: cell.r,
+                        px: cell.c * cellSize + cellSize / 2,
+                        py: cell.r * cellSize + cellSize / 2,
+                        collected: false
+                    });
+                }
+            }
+
+            // Setup Patrol Enemies
+            const enemyCount = Math.min(1 + Math.floor(level * 0.7), 8);
+            enemies = [];
+
+            for (let i = 0; i < enemyCount; i++) {
+                if (availableCells.length > 0) {
+                    const cell = availableCells.pop();
+                    enemies.push({
+                        c: cell.c,
+                        r: cell.r,
+                        px: cell.c * cellSize + cellSize / 2,
+                        py: cell.r * cellSize + cellSize / 2,
+                        dir: Math.floor(Math.random() * 4), // 0: Top, 1: Right, 2: Bottom, 3: Left
+                        speed: (cellSize * 0.035) + (level * 0.2)
+                    });
+                }
+            }
+
+            // Timer Setup
+            timeRemaining = Math.max(70 - level * 3, 30);
+
+            updateHUD();
+        }
+
+        function updateHUD() {
+            hudLevel.innerText = level;
+            hudScore.innerText = String(score).padStart(5, '0');
+            hudKeys.innerText = `🔑 ${keysCollected}/${totalKeys}`;
+            
+            let hearts = '';
+            for (let i = 0; i < lives; i++) hearts += '❤️';
+            hudLives.innerText = hearts || '💀';
+            
+            hudTimer.innerText = `${timeRemaining}s`;
+        }
+
+        // --- Movement & Collision System ---
+        function updatePlayer() {
+            let dx = 0;
+            let dy = 0;
+
+            if (keysPressed['ArrowUp'] || keysPressed['KeyW']) dy -= player.speed;
+            if (keysPressed['ArrowDown'] || keysPressed['KeyS']) dy += player.speed;
+            if (keysPressed['ArrowLeft'] || keysPressed['KeyA']) dx -= player.speed;
+            if (keysPressed['ArrowRight'] || keysPressed['KeyD']) dx += player.speed;
+
+            if (dx !== 0 && dy !== 0) {
+                dx *= 0.7071;
+                dy *= 0.7071;
+            }
+
+            if (dx === 0 && dy === 0) return;
+
+            let newPx = player.px + dx;
+            let newPy = player.py + dy;
+
+            // Check Collision against Maze Walls
+            if (!checkWallCollision(newPx, player.py, player.radius)) {
+                player.px = newPx;
+            }
+            if (!checkWallCollision(player.px, newPy, player.radius)) {
+                player.py = newPy;
+            }
+
+            // Update cell coordinates
+            player.x = Math.floor(player.px / cellSize);
+            player.y = Math.floor(player.py / cellSize);
+
+            // Check Key Pickup
+            keys.forEach(k => {
+                if (!k.collected) {
+                    const dist = Math.hypot(player.px - k.px, player.py - k.py);
+                    if (dist < player.radius + cellSize * 0.2) {
+                        k.collected = true;
+                        keysCollected++;
+                        score += 100;
+                        sound.play('key');
+                        if (keysCollected === totalKeys) {
+                            exitGate.unlocked = true;
+                            sound.play('unlock');
+                        }
+                        updateHUD();
+                    }
+                }
+            });
+
+            // Check Exit Gate Collision
+            if (exitGate.unlocked) {
+                const exitPx = exitGate.x * cellSize + cellSize / 2;
+                const exitPy = exitGate.y * cellSize + cellSize / 2;
+                if (Math.hypot(player.px - exitPx, player.py - exitPy) < player.radius + cellSize * 0.25) {
+                    triggerVictory();
+                }
+            }
+
+            if (player.invulnerable > 0) {
+                player.invulnerable--;
+            }
+        }
+
+        function checkWallCollision(px, py, radius) {
+            // Find current cell candidate
+            const c = Math.floor(px / cellSize);
+            const r = Math.floor(py / cellSize);
+
+            if (c < 0 || c >= cols || r < 0 || r >= rows) return true;
+
+            const cell = grid[index(c, r)];
+            if (!cell) return true;
+
+            const cellLeft = c * cellSize;
+            const cellRight = (c + 1) * cellSize;
+            const cellTop = r * cellSize;
+            const cellBottom = (r + 1) * cellSize;
+
+            // Check 4 cell boundaries if wall exists
+            if (cell.walls[0] && (py - radius < cellTop)) return true; // Top
+            if (cell.walls[1] && (px + radius > cellRight)) return true; // Right
+            if (cell.walls[2] && (py + radius > cellBottom)) return true; // Bottom
+            if (cell.walls[3] && (px - radius < cellLeft)) return true; // Left
+
+            return false;
+        }
+
+        // --- Enemy AI & Logic ---
+        function updateEnemies() {
+            enemies.forEach(enemy => {
+                // Move towards current direction
+                let nextPx = enemy.px;
+                let nextPy = enemy.py;
+
+                // 0: Top, 1: Right, 2: Bottom, 3: Left
+                if (enemy.dir === 0) nextPy -= enemy.speed;
+                else if (enemy.dir === 1) nextPx += enemy.speed;
+                else if (enemy.dir === 2) nextPy += enemy.speed;
+                else if (enemy.dir === 3) nextPx -= enemy.speed;
+
+                // Check collision with walls for enemy
+                if (checkWallCollision(nextPx, nextPy, cellSize * 0.25)) {
+                    // Choose a new available direction at intersection/wall
+                    const currentC = Math.floor(enemy.px / cellSize);
+                    const currentR = Math.floor(enemy.py / cellSize);
+                    const cell = grid[index(currentC, currentR)];
+
+                    const validDirs = [];
+                    if (cell) {
+                        if (!cell.walls[0]) validDirs.push(0);
+                        if (!cell.walls[1]) validDirs.push(1);
+                        if (!cell.walls[2]) validDirs.push(2);
+                        if (!cell.walls[3]) validDirs.push(3);
+                    }
+
+                    if (validDirs.length > 0) {
+                        enemy.dir = validDirs[Math.floor(Math.random() * validDirs.length)];
+                    } else {
+                        enemy.dir = (enemy.dir + 2) % 4; // Turn around
+                    }
+                } else {
+                    enemy.px = nextPx;
+                    enemy.py = nextPy;
+                }
+
+                // Check player collision with enemy
+                if (player.invulnerable <= 0) {
+                    const dist = Math.hypot(player.px - enemy.px, player.py - enemy.py);
+                    if (dist < player.radius + cellSize * 0.25) {
+                        handlePlayerHit();
+                    }
+                }
+            });
+        }
+
+        function handlePlayerHit() {
+            lives--;
+            sound.play('hit');
+            updateHUD();
+
+            if (lives <= 0) {
+                triggerGameOver("Defeated by patrol security bots!");
+            } else {
+                // Respawn player at start with temporary invulnerability
+                player.px = cellSize / 2;
+                player.py = cellSize / 2;
+                player.invulnerable = 90; // ~1.5 seconds at 60fps
+            }
+        }
+
+        // --- Rendering Engine ---
+        function render() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 1. Render Maze Grid Walls
+            ctx.lineWidth = Math.max(3, cellSize * 0.1);
+            ctx.strokeStyle = '#1e293b'; // Slate dark blue
+            ctx.lineCap = 'round';
+
+            for (let i = 0; i < grid.length; i++) {
+                const cell = grid[i];
+                const x = cell.c * cellSize;
+                const y = cell.r * cellSize;
+
+                ctx.beginPath();
+                if (cell.walls[0]) { ctx.moveTo(x, y); ctx.lineTo(x + cellSize, y); }
+                if (cell.walls[1]) { ctx.moveTo(x + cellSize, y); ctx.lineTo(x + cellSize, y + cellSize); }
+                if (cell.walls[2]) { ctx.moveTo(x, y + cellSize); ctx.lineTo(x + cellSize, y + cellSize); }
+                if (cell.walls[3]) { ctx.moveTo(x, y); ctx.lineTo(x, y + cellSize); }
+                ctx.stroke();
+            }
+
+            // Glow Pass for Exit Portal
+            const exitPx = exitGate.x * cellSize + cellSize / 2;
+            const exitPy = exitGate.y * cellSize + cellSize / 2;
+            ctx.save();
+            ctx.shadowBlur = exitGate.unlocked ? 18 : 6;
+            ctx.shadowColor = exitGate.unlocked ? '#22c55e' : '#64748b';
+            ctx.fillStyle = exitGate.unlocked ? '#22c55e' : '#334155';
+            ctx.beginPath();
+            ctx.arc(exitPx, exitPy, cellSize * 0.3, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+
+            // Exit Icon inside Portal
+            ctx.fillStyle = '#ffffff';
+            ctx.font = `${cellSize * 0.35}px sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(exitGate.unlocked ? '🚪' : '🔒', exitPx, exitPy);
+
+            // 2. Render Keys
+            keys.forEach(k => {
+                if (!k.collected) {
+                    ctx.save();
+                    ctx.shadowBlur = 12;
+                    ctx.shadowColor = '#f59e0b';
+                    ctx.fillStyle = '#fbbf24';
+                    ctx.font = `${cellSize * 0.4}px sans-serif`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('🔑', k.px, k.py);
+                    ctx.restore();
+                }
+            });
+
+            // 3. Render Enemies
+            enemies.forEach(e => {
+                ctx.save();
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = '#ef4444';
+                ctx.fillStyle = '#ef4444';
+                ctx.font = `${cellSize * 0.45}px sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('👾', e.px, e.py);
+                ctx.restore();
+            });
+
+            // 4. Render Player
+            if (player.invulnerable % 10 < 5) { // Flash during invulnerability
+                ctx.save();
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = '#38bdf8';
+                ctx.fillStyle = '#38bdf8';
+                ctx.beginPath();
+                ctx.arc(player.px, player.py, player.radius, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Inner core
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(player.px, player.py, player.radius * 0.4, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+
+            // 5. Render Fog of War Overlay (If Toggled)
+            if (fogOfWar) {
+                ctx.save();
+                const radius = cellSize * 2.2;
+                const gradient = ctx.createRadialGradient(
+                    player.px, player.py, radius * 0.2,
+                    player.px, player.py, radius
+                );
+                gradient.addColorStop(0, 'rgba(8, 9, 20, 0)');
+                gradient.addColorStop(0.8, 'rgba(8, 9, 20, 0.85)');
+                gradient.addColorStop(1, 'rgba(8, 9, 20, 0.98)');
+
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.restore();
+            }
+        }
+
+        // --- Game Flow & Loop ---
+        function gameLoop() {
+            if (gameState === 'PLAYING') {
+                updatePlayer();
+                updateEnemies();
+                render();
+                requestAnimationFrame(gameLoop);
+            }
+        }
+
+        function startTimer() {
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                if (gameState === 'PLAYING') {
+                    timeRemaining--;
+                    updateHUD();
+
+                    if (timeRemaining <= 0) {
+                        triggerGameOver("Time ran out!");
+                    }
+                }
+            }, 1000);
+        }
+
+        function startGame() {
+            gameState = 'PLAYING';
+            overlayStart.classList.add('hidden');
+            overlayVictory.classList.add('hidden');
+            overlayGameOver.classList.add('hidden');
+
+            initLevel();
+            startTimer();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function triggerVictory() {
+            gameState = 'VICTORY';
+            clearInterval(timerInterval);
+            sound.play('win');
+
+            const timeBonus = timeRemaining * 15;
+            score += 500 + timeBonus;
+
+            document.getElementById('vic-time-bonus').innerText = `+${timeBonus}`;
+            document.getElementById('vic-total-score').innerText = String(score).padStart(5, '0');
+
+            overlayVictory.classList.remove('hidden');
+        }
+
+        function triggerGameOver(reason) {
+            gameState = 'GAMEOVER';
+            clearInterval(timerInterval);
+            sound.play('gameover');
+
+            document.getElementById('gameover-reason').innerText = reason;
+            document.getElementById('go-level').innerText = level;
+            document.getElementById('go-score').innerText = String(score).padStart(5, '0');
+
+            overlayGameOver.classList.remove('hidden');
+        }
+
+        // --- Event Listeners ---
+        window.addEventListener('keydown', e => {
+            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'Space'].includes(e.code)) {
+                e.preventDefault();
+            }
+            keysPressed[e.code] = true;
+        });
+
+        window.addEventListener('keyup', e => {
+            keysPressed[e.code] = false;
+        });
+
+        btnStart.addEventListener('click', () => {
+            level = 1;
+            score = 0;
+            lives = 3;
+            startGame();
+        });
+
+        btnNextLevel.addEventListener('click', () => {
+            level++;
+            startGame();
+        });
+
+        btnRestart.addEventListener('click', () => {
+            level = 1;
+            score = 0;
+            lives = 3;
+            startGame();
+        });
+
+        btnFog.addEventListener('click', () => {
+            fogOfWar = !fogOfWar;
+            fogStatus.innerText = fogOfWar ? 'ON' : 'OFF';
+            fogStatus.className = fogOfWar ? 'text-emerald-400' : 'text-rose-400';
+            if (gameState === 'PLAYING') render();
+        });
+
+        btnSound.addEventListener('click', () => {
+            sound.enabled = !sound.enabled;
+            soundStatus.innerText = sound.enabled ? 'ON' : 'OFF';
+            soundStatus.className = sound.enabled ? 'text-emerald-400' : 'text-rose-400';
+        });
+
+        // Mobile Touch Button Handlers
+        const touchBtns = [
+            { id: 'touch-up', code: 'ArrowUp' },
+            { id: 'touch-down', code: 'ArrowDown' },
+            { id: 'touch-left', code: 'ArrowLeft' },
+            { id: 'touch-right', code: 'ArrowRight' }
+        ];
+
+        touchBtns.forEach(b => {
+            const el = document.getElementById(b.id);
+            if (el) {
+                el.addEventListener('touchstart', (e) => { e.preventDefault(); keysPressed[b.code] = true; });
+                el.addEventListener('touchend', (e) => { e.preventDefault(); keysPressed[b.code] = false; });
+                el.addEventListener('mousedown', () => { keysPressed[b.code] = true; });
+                el.addEventListener('mouseup', () => { keysPressed[b.code] = false; });
+            }
+        });
+
+        // Window resize adjustment
+        window.addEventListener('resize', () => {
+            if (gameState === 'PLAYING') {
+                const size = Math.min(window.innerWidth - 32, 600);
+                const scale = size / canvas.width;
+                canvas.width = size;
+                canvas.height = size;
+                cellSize = canvas.width / cols;
+                player.px *= scale;
+                player.py *= scale;
+                player.radius = cellSize * 0.28;
+                player.speed = cellSize * 0.085;
+                keys.forEach(k => { k.px *= scale; k.py *= scale; });
+                enemies.forEach(e => { e.px *= scale; e.py *= scale; });
+                render();
+            }
+        });
+
+        // Initial Canvas Render for Backdrop
+        cols = 11; rows = 11;
+        const size = Math.min(window.innerWidth - 32, 600);
+        canvas.width = size;
+        canvas.height = size;
+        cellSize = canvas.width / cols;
+        generateMaze();
+        render();
+
+    </script>
+</body>
+</html>
